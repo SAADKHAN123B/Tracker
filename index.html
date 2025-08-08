@@ -1,297 +1,75 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>///IP TRACKER///v3.0</title>
-
-<!-- Leaflet CSS (OpenStreetMap viewer) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-sA+v+q3q6k5gkGkG6t1q9kFf3s0bKp1z9Kk0p2wYgQY=" crossorigin=""/>
-
+<meta charset="UTF-8">
+<title>///IP TRACKER/// v3.0</title>
 <style>
-  :root{
-    --bg:#000;
-    --green:#00ff33;
-    --muted:#0f0f0f;
-    --panel-bg: rgba(0,0,0,0.45);
-    --mono: 'Courier New', Courier, monospace;
-  }
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--green);font-family:var(--mono);}
-  .wrap{display:flex;flex-direction:row;gap:20px;padding:18px;height:100%;}
-  .left{
-    width:520px;
-    min-width:300px;
-    max-width:55%;
-    background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.9));
-    border:1px solid rgba(0,255,51,0.06);
-    padding:18px;border-radius:6px;box-shadow:0 0 20px rgba(0,255,51,0.03) inset;
-  }
-  .title{font-size:18px;letter-spacing:1px;margin-bottom:8px}
-  .subtitle{font-size:13px;color:var(--green);opacity:0.9;margin-bottom:12px}
-  .status{background:#00110022;padding:10px;border-radius:6px;border:1px solid rgba(0,255,51,0.06);min-height:200px;white-space:pre-line;overflow:auto}
-  .blink{animation:blink 1s steps(2,end) infinite}
-  @keyframes blink{50%{opacity:0}}
-  input[type="text"]{
-    width:100%;padding:10px;background:#000;border:1px solid rgba(0,255,51,0.15);
-    color:var(--green);font-family:var(--mono);font-size:14px;border-radius:4px;margin-top:12px;
-  }
-  button{
-    margin-top:10px;padding:8px 12px;background:transparent;border:1px solid var(--green);
-    color:var(--green);font-family:var(--mono);cursor:pointer;border-radius:4px;
-  }
-  .small{font-size:12px;opacity:0.9;margin-top:8px}
-  .ipbig{font-size:20px;font-weight:700;margin-top:6px;margin-bottom:6px}
-  .cols{display:flex;gap:12px;margin-top:12px}
-  .info{flex:1;background:var(--panel-bg);padding:12px;border-radius:6px;border:1px solid rgba(0,255,51,0.04);min-height:80px;white-space:pre-line;overflow:auto}
-  /* Map area */
-  #map{flex:1;border-radius:6px;border:1px solid rgba(0,255,51,0.06);min-height:420px}
-  /* responsive */
-  @media (max-width:900px){.wrap{flex-direction:column}.left{max-width:100%}.cols{flex-direction:column}}
-  a { color: var(--green); text-decoration: none; }
+  body { background:black; color:#00FF00; font-family:monospace; padding:20px; }
+  h1 { text-align:center; color:#00FF00; }
+  input, button { background:black; color:#00FF00; border:1px solid #00FF00; padding:5px; }
+  button:hover { background:#00FF00; color:black; cursor:pointer; }
+  #map { height:400px; width:100%; margin-top:10px; border:1px solid #00FF00; }
+  .log { white-space:pre-line; border:1px solid #00FF00; padding:10px; margin-top:10px; }
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <div class="left">
-      <div class="title">///IP TRACKER///v3.0</div>
-      <div class="subtitle">REAL-TIME LOCATION TRACKING SYSTEM</div>
 
-      <div class="status" id="status">
-ACTIVE
+<h1>///IP TRACKER/// v3.0</h1>
+<p>REAL-TIME LOCATION TRACKING SYSTEM</p>
+<p>Status: <b>ACTIVE</b></p>
+<p>TARGET ACQUISITION</p>
+<input type="text" id="target-ip" placeholder="ENTER TARGET IP (leave blank for your IP)">
+<button onclick="trackIP()">TRACK ▶</button>
+<button onclick="clearResults()">CLEAR</button>
 
-TARGET ACQUISITION
+<div class="log" id="log-box">system> SYSTEM READY. YOUR APPROXIMATE IP: Fetching...</div>
+<div id="map"></div>
 
-106.196.4.58
+<script>
+let map;
 
-MY IP
-
-> SYSTEM INITIALIZED
-> REAL-TIME TRACKING MODULE LOADED
-> AWAITING INPUT
-
-system> SYSTEM READY. YOUR APPROXIMATE IP: <span id="sys-ip">Fetching...</span>
-      </div>
-
-      <div style="margin-top:12px">
-        <label class="small">ENTER TARGET IP (or leave blank for your IP)</label>
-        <input id="ipInput" type="text" placeholder="e.g. 8.8.8.8 or 106.196.4.58" />
-        <div style="display:flex;gap:8px">
-          <button id="trackBtn">TRACK ▶</button>
-          <button id="clearBtn">CLEAR</button>
-        </div>
-        <div class="small">Response uses <code>ipapi.co</code> / <code>ipify</code>. Map is OpenStreetMap (Leaflet) — no external Google links required.</div>
-      </div>
-
-      <div class="cols">
-        <div class="info" id="infoPanel">
-          <div style="opacity:0.9">RESULTS</div>
-          <div id="results" style="margin-top:8px">No data yet.</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="map" aria-label="map panel"></div>
-  </div>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-o9N1j8g+g0k7QIEvNq4wqQ0eM0bG+g1w1gkq0Q3Yf5w=" crossorigin=""></script>
-
-  <script>
-  (function(){
-    const statusEl = document.getElementById('status');
-    const sysIpEl = document.getElementById('sys-ip');
-    const resultsEl = document.getElementById('results');
-    const ipInput = document.getElementById('ipInput');
-    const trackBtn = document.getElementById('trackBtn');
-    const clearBtn = document.getElementById('clearBtn');
-
-    // initialize map (center of world)
-    const map = L.map('map', {zoomControl:true, attributionControl:false}).setView([20,0], 2);
+function initMap(lat, lon) {
+  if (!map) {
+    map = L.map('map').setView([lat, lon], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18
+      maxZoom: 19
     }).addTo(map);
-    let marker;
+  } else {
+    map.setView([lat, lon], 13);
+  }
+  L.marker([lat, lon]).addTo(map);
+}
 
-    function setStatus(lines){
-      statusEl.innerText = lines;
-    }
+async function trackIP() {
+  let ip = document.getElementById('target-ip').value.trim();
+  if (!ip) {
+    let myIP = await fetch("https://api.ipify.org?format=json").then(r => r.json());
+    ip = myIP.ip;
+  }
+  
+  try {
+    let data = await fetch(`https://ipapi.co/${ip}/json/`).then(r => r.json());
+    if (data.error) throw new Error(data.reason);
 
-    function showSystemIP(ip){
-      sysIpEl.innerText = ip;
-    }
+    document.getElementById('log-box').innerText = 
+      `system> Tracking IP: ${ip}\n` +
+      `City: ${data.city}\nRegion: ${data.region}\nCountry: ${data.country_name}\n` +
+      `Latitude: ${data.latitude}, Longitude: ${data.longitude}\nISP: ${data.org}`;
 
-    // read ip from query param if present
-    function getQueryIP(){
-      try {
-        const p = new URLSearchParams(window.location.search);
-        return p.get('ip') || '';
-      } catch(e){
-        return '';
-      }
-    }
+    initMap(data.latitude, data.longitude);
+  } catch (err) {
+    document.getElementById('log-box').innerText = "Error: " + err.message;
+  }
+}
 
-    // fetch visitor IP on load (https)
-    fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{
-      showSystemIP(d.ip);
-      // if page includes ?ip= use that automatically, else keep ready
-      const qip = getQueryIP();
-      if(qip) {
-        ipInput.value = qip;
-        trackIP(qip);
-      }
-    }).catch(()=>showSystemIP('unknown'));
+function clearResults() {
+  document.getElementById('log-box').innerText = "system> SYSTEM CLEARED";
+  document.getElementById('map').innerHTML = "";
+  map = null;
+}
+</script>
 
-    // Try primary (ipapi.co) which supports HTTPS; fallback to ipwhois.app if needed
-    async function fetchIPData(ip){
-      const target = (ip && ip.length>0) ? ip : '';
-      // ipapi.co endpoints:
-      const primary = target ? `https://ipapi.co/${target}/json/` : `https://ipapi.co/json/`;
-      try {
-        const res = await fetch(primary);
-        const d = await res.json();
-        if(d && (d.error === true || !d.ip && !d.latitude && !d.latitude===0 && !d.latitude)) {
-          throw new Error('ipapi failed');
-        }
-        // normalize
-        return {
-          status: d.ip ? 'success' : 'fail',
-          query: d.ip || target,
-          country: d.country_name || 'N/A',
-          regionName: d.region || d.region_code || 'N/A',
-          city: d.city || 'N/A',
-          lat: d.latitude !== undefined ? d.latitude : d.latitude,
-          lon: d.longitude !== undefined ? d.longitude : d.longitude,
-          isp: d.org || d.organization || 'N/A',
-          timezone: d.timezone || 'N/A'
-        };
-      } catch (err) {
-        // fallback to ipwhois.app (https)
-        try {
-          const res2 = await fetch(`https://ipwhois.app/json/${target || ''}`);
-          const d2 = await res2.json();
-          if(!d2 || d2.success === false) throw new Error('ipwhois failed');
-          return {
-            status: d2.ip ? 'success' : 'fail',
-            query: d2.ip || target,
-            country: d2.country || 'N/A',
-            regionName: d2.region || 'N/A',
-            city: d2.city || 'N/A',
-            lat: d2.latitude || d2.lat || 0,
-            lon: d2.longitude || d2.lon || 0,
-            isp: d2.connection && d2.connection.org ? d2.connection.org : (d2.org || 'N/A'),
-            timezone: d2.timezone || 'N/A'
-          };
-        } catch(e){
-          return { status: 'fail', message: 'Network error or blocked API' };
-        }
-      }
-    }
-
-    function renderData(d){
-      if(!d) {
-        resultsEl.innerText = 'No data.';
-        return;
-      }
-      if(d.status !== 'success'){
-        resultsEl.innerText = '❌ Error: ' + (d.message || 'Could not lookup IP');
-        // clear marker
-        if(marker){ map.removeLayer(marker); marker = null; map.setView([20,0],2); }
-        return;
-      }
-      // show textual info
-      const lines = [
-        `IP: ${d.query}`,
-        `Country: ${d.country || 'N/A'}`,
-        `Region: ${d.regionName || 'N/A'}`,
-        `City: ${d.city || 'N/A'}`,
-        `Timezone: ${d.timezone || 'N/A'}`,
-        `ISP: ${d.isp || 'N/A'}`,
-        `Latitude: ${d.lat}`,
-        `Longitude: ${d.lon}`
-      ];
-      resultsEl.innerText = lines.join('\n');
-
-      // update status block top to reflect target and readiness
-      setStatus([
-'ACTIVE',
-'',
-'TARGET ACQUISITION',
-d.query,
-'',
-'MY IP',
-'',
-'> SYSTEM INITIALIZED',
-'> REAL-TIME TRACKING MODULE LOADED',
-'> AWAITING INPUT',
-'',
-`system> SYSTEM READY. YOUR APPROXIMATE IP: ${d.query}`
-      ].join('\n'));
-
-      // map
-      const lat = Number(d.lat) || 0;
-      const lon = Number(d.lon) || 0;
-      if(marker) map.removeLayer(marker);
-      marker = L.circleMarker([lat,lon], {radius:10, color:'#00ff33', fillColor:'#002200', fillOpacity:0.9}).addTo(map);
-      map.setView([lat,lon], 8);
-    }
-
-    async function trackIP(ip){
-      resultsEl.innerText = '⏳ Fetching...';
-      const data = await fetchIPData(ip);
-      renderData(data);
-    }
-
-    trackBtn.addEventListener('click', async ()=>{
-      const ip = ipInput.value.trim();
-      if(!ip) {
-        // track visitor IP
-        trackIP('');
-      } else {
-        trackIP(ip);
-      }
-    });
-
-    clearBtn.addEventListener('click', ()=>{
-      ipInput.value='';
-      resultsEl.innerText = 'Cleared.';
-      setStatus([
-'ACTIVE',
-'',
-'TARGET ACQUISITION',
-'106.196.4.58',
-'',
-'MY IP',
-'',
-'> SYSTEM INITIALIZED',
-'> REAL-TIME TRACKING MODULE LOADED',
-'> AWAITING INPUT',
-'',
-`system> SYSTEM READY. YOUR APPROXIMATE IP: ${sysIpEl.innerText || 'unknown'}`
-      ].join('\n'));
-      if(marker){ map.removeLayer(marker); marker=null; map.setView([20,0],2); }
-    });
-
-    // allow Enter key
-    ipInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ trackBtn.click(); } });
-
-    // initial status (matching your sample)
-    setStatus([
-'ACTIVE',
-'',
-'TARGET ACQUISITION',
-'106.196.4.58',
-'',
-'MY IP',
-'',
-'> SYSTEM INITIALIZED',
-'> REAL-TIME TRACKING MODULE LOADED',
-'> AWAITING INPUT',
-'',
-`system> SYSTEM READY. YOUR APPROXIMATE IP: ${sysIpEl.innerText || 'Fetching...'}`
-    ].join('\n'));
-  })();
-  </script>
 </body>
 </html>
